@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0f1218">
+  <title>Bacley Chatbot · Atendimento</title>
+
+  <!-- Aplica o tema salvo antes da pintura para evitar "flash" de tema -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('bacley-theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="logo-bacley-chatbot.svg">
+
+  <!-- Inter (interface) + JetBrains Mono (marca e números tabulares) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,500;0,700;1,800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="bacley-chat.css">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <script src="bacley-chat.js" defer></script>
+</head>
+<body>
+
+  <!-- ============================================================
+       SPRITE SVG: emblema da marca reutilizável (logo, marca d'água,
+       estado vazio). Mesma geometria de logo-bacley-chatbot.svg.
+       ============================================================ -->
+  <svg class="sr-sprite" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="brand-gradient" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#93c5fd" />
+        <stop offset="1" stop-color="#2563eb" />
+      </linearGradient>
+      <symbol id="bacley-mark" viewBox="0 0 1260 1105">
+        <path fill-rule="evenodd" d="M212 100L3 867L532 867L552 864L606 847L658 817L702 777L721 751L732 730L743 687L740 647L727 616L702 587L741 560L766 535L783 511L798 477L804 449L803 410L794 379L779 353L758 330L740 317L724 309L696 301L676 299L443 299L354 639L583 639L603 643L623 658L632 677L633 701L628 719L621 732L606 749L588 762L569 770L545 774L148 774L141 772L293 192L1120 191L1124 193L936 899L934 900L808 773L735 774L694 816L636 858L641 862L652 864L750 864L756 866L991 1099L996 1100L1053 888L1254 100Z M487 537L522 402L526 400L642 400L657 403L667 408L678 418L684 429L688 443L689 453L687 468L682 483L674 497L660 514L645 525L630 532L615 537L609 538L488 538Z" />
+      </symbol>
+    </defs>
+  </svg>
+
+  <a class="skip-link" href="#composer-input">Pular para o campo de mensagem</a>
+
+  <div class="app" id="app" data-view="chat">
+
+    <!-- =========================================================
+         SIDEBAR
+         ========================================================= -->
+    <aside class="sidebar" id="sidebar" aria-label="Conversas">
+
+      <div class="sidebar__top">
+        <!-- Marca -->
+        <div class="brand">
+          <svg class="brand__mark" viewBox="0 0 1260 1105" aria-hidden="true"><use href="#bacley-mark" /></svg>
+          <span class="brand__name">BACLEY<span>CHATBOT</span></span>
+          <button class="icon-btn icon-btn--sm brand__collapse" id="btn-collapse"
+                  aria-label="Recolher menu lateral" data-tooltip="Recolher menu" data-tooltip-pos="right">
+            <i data-lucide="panel-left"></i>
+          </button>
+        </div>
+
+        <!-- Busca -->
+        <label class="search" for="search-input">
+          <i data-lucide="search" class="search__icon"></i>
+          <input id="search-input" type="search" autocomplete="off" spellcheck="false"
+                 placeholder="Buscar conversas ou contatos" aria-label="Buscar conversas ou contatos">
+          <kbd class="search__kbd" aria-hidden="true">Ctrl K</kbd>
+        </label>
+
+        <!-- Filtros rápidos -->
+        <div class="chips" role="tablist" aria-label="Filtrar conversas">
+          <button class="chip is-active" role="tab" aria-selected="true" data-filter="all">Todas</button>
+          <button class="chip" role="tab" aria-selected="false" data-filter="unread">
+            Não lidas <span class="chip__count" id="count-unread">0</span>
+          </button>
+          <button class="chip" role="tab" aria-selected="false" data-filter="mine">Minhas</button>
+        </div>
+      </div>
+
+      <nav class="sidebar__nav scroll" aria-label="Filas de atendimento">
+
+        <!-- Fila de espera -->
+        <section class="group" data-group="queue">
+          <button class="group__header" aria-expanded="true" aria-controls="list-queue" data-tooltip="Fila de espera" data-tooltip-pos="right">
+            <i data-lucide="chevron-down" class="group__chevron"></i>
+            <i data-lucide="inbox" class="group__icon"></i>
+            <span class="group__title">Fila de espera</span>
+            <span class="badge badge--brand" id="badge-queue" aria-label="conversas na fila">0</span>
+          </button>
+          <ul class="conv-list" id="list-queue" aria-label="Fila de espera"></ul>
+        </section>
+
+        <!-- Atendimentos -->
+        <section class="group" data-group="active">
+          <button class="group__header" aria-expanded="true" aria-controls="list-active" data-tooltip="Atendimentos" data-tooltip-pos="right">
+            <i data-lucide="chevron-down" class="group__chevron"></i>
+            <i data-lucide="messages-square" class="group__icon"></i>
+            <span class="group__title">Atendimentos</span>
+            <span class="badge" id="badge-active" aria-label="conversas em atendimento">0</span>
+          </button>
+          <ul class="conv-list" id="list-active" aria-label="Atendimentos"></ul>
+        </section>
+
+        <!-- Métricas -->
+        <section class="group" data-group="metrics">
+          <button class="group__header" aria-expanded="false" aria-controls="metrics-body" data-tooltip="Métricas" data-tooltip-pos="right">
+            <i data-lucide="chevron-down" class="group__chevron"></i>
+            <i data-lucide="chart-column" class="group__icon"></i>
+            <span class="group__title">Métricas</span>
+            <span class="group__live"><span class="pulse"></span>Ao vivo</span>
+          </button>
+          <div class="group__body" id="metrics-body" hidden>
+            <div class="kpis">
+              <div class="kpi">
+                <span class="kpi__label">TMA</span>
+                <span class="kpi__value">4m12s</span>
+                <span class="kpi__trend is-good"><i data-lucide="trending-down"></i>8%</span>
+              </div>
+              <div class="kpi">
+                <span class="kpi__label">CSAT</span>
+                <span class="kpi__value">4,8</span>
+                <span class="kpi__trend is-good"><i data-lucide="trending-up"></i>0,2</span>
+              </div>
+              <div class="kpi">
+                <span class="kpi__label">Resolv. IA</span>
+                <span class="kpi__value">62%</span>
+                <span class="kpi__trend is-bad"><i data-lucide="trending-down"></i>3%</span>
+              </div>
+            </div>
+            <a href="#" class="nav-link"><i data-lucide="gauge"></i>Painel do dia (SLA &amp; Fila)</a>
+            <a href="#" class="nav-link"><i data-lucide="bot"></i>Desempenho IA vs Humano</a>
+            <a href="#" class="nav-link"><i data-lucide="star"></i>Satisfação (CSAT)</a>
+          </div>
+        </section>
+      </nav>
+
+      <!-- Rodapé: atendente logado -->
+      <div class="sidebar__footer">
+        <button class="agent" id="btn-agent" aria-haspopup="menu" aria-expanded="false" aria-controls="agent-menu">
+          <span class="avatar avatar--sm avatar--brand">
+            AD
+            <span class="presence presence--online" id="agent-presence"></span>
+          </span>
+          <span class="agent__info">
+            <span class="agent__name">Atendente</span>
+            <span class="agent__status" id="agent-status-label">Disponível</span>
+          </span>
+          <i data-lucide="chevrons-up-down" class="agent__caret"></i>
+        </button>
+        <div class="sidebar__footer-actions">
+          <button class="icon-btn" id="btn-theme" aria-label="Alternar tema claro/escuro" data-tooltip="Alternar tema" data-tooltip-pos="top">
+            <i data-lucide="sun" class="theme-icon theme-icon--light"></i>
+            <i data-lucide="moon" class="theme-icon theme-icon--dark"></i>
+          </button>
+          <button class="icon-btn" aria-label="Configurações" data-tooltip="Configurações" data-tooltip-pos="top">
+            <i data-lucide="settings"></i>
+          </button>
+        </div>
+
+        <div class="menu menu--up" id="agent-menu" role="menu" hidden>
+          <span class="menu__label">Seu status</span>
+          <button class="menu__item" role="menuitemradio" aria-checked="true" data-status="online">
+            <span class="presence presence--online presence--inline"></span>Disponível
+            <i data-lucide="check" class="menu__check"></i>
+          </button>
+          <button class="menu__item" role="menuitemradio" aria-checked="false" data-status="busy">
+            <span class="presence presence--busy presence--inline"></span>Ocupado
+            <i data-lucide="check" class="menu__check"></i>
+          </button>
+          <button class="menu__item" role="menuitemradio" aria-checked="false" data-status="away">
+            <span class="presence presence--away presence--inline"></span>Ausente
+            <i data-lucide="check" class="menu__check"></i>
+          </button>
+          <hr class="menu__sep">
+          <button class="menu__item" role="menuitem" data-action="shortcuts">
+            <i data-lucide="keyboard"></i>Atalhos de teclado <kbd>Ctrl /</kbd>
+          </button>
+          <button class="menu__item menu__item--danger" role="menuitem">
+            <i data-lucide="log-out"></i>Sair
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- =========================================================
+         ÁREA DE TRABALHO (chat + detalhes)
+         ========================================================= -->
+    <div class="workspace">
+
+      <main class="chat" id="chat" aria-label="Conversa">
+
+        <!-- Marca d'água com o emblema -->
+        <svg class="chat__watermark" aria-hidden="true">
+          <defs>
+            <pattern id="brand-watermark" width="96" height="96" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)">
+              <use href="#bacley-mark" x="34" y="36" width="28" height="25" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#brand-watermark)" />
+        </svg>
+
+        <!-- Estado vazio -->
+        <section class="empty" id="chat-empty" hidden>
+          <div class="empty__mark">
+            <svg viewBox="0 0 1260 1105" aria-hidden="true"><use href="#bacley-mark" /></svg>
+          </div>
+          <h2 class="empty__title">Tudo em dia por aqui</h2>
+          <p class="empty__text">Selecione uma conversa na barra lateral ou assuma o próximo cliente da fila.</p>
+          <button class="btn btn--primary" id="btn-next-queue"><i data-lucide="user-round-plus"></i>Atender próximo da fila</button>
+          <ul class="empty__shortcuts">
+            <li><kbd>Ctrl</kbd><kbd>K</kbd> Buscar conversas</li>
+            <li><kbd>Alt</kbd><kbd>↑</kbd><kbd>↓</kbd> Navegar entre conversas</li>
+            <li><kbd>Ctrl</kbd><kbd>/</kbd> Todos os atalhos</li>
+          </ul>
+        </section>
+
+        <!-- Conversa ativa -->
+        <section class="chat__view" id="chat-view">
+
+          <header class="chat-header">
+            <button class="icon-btn chat-header__back" id="btn-back" aria-label="Voltar para a lista de conversas">
+              <i data-lucide="arrow-left"></i>
+            </button>
+
+            <button class="chat-header__contact" id="btn-contact" aria-label="Ver detalhes do contato">
+              <span id="header-avatar"></span>
+              <span class="chat-header__meta">
+                <span class="chat-header__name" id="header-name"></span>
+                <span class="chat-header__sub" id="header-sub"></span>
+              </span>
+            </button>
+
+            <div class="chat-header__actions">
+              <button class="icon-btn" id="btn-chat-search" aria-label="Buscar na conversa" data-tooltip="Buscar na conversa">
+                <i data-lucide="search"></i>
+              </button>
+              <button class="icon-btn" id="btn-transfer" aria-label="Transferir atendimento" data-tooltip="Transferir">
+                <i data-lucide="arrow-right-left"></i>
+              </button>
+              <button class="icon-btn" id="btn-details" aria-label="Mostrar detalhes do contato" aria-pressed="true" data-tooltip="Detalhes do contato">
+                <i data-lucide="panel-right"></i>
+              </button>
+              <span class="chat-header__divider" aria-hidden="true"></span>
+              <button class="btn btn--success" id="btn-finish">
+                <i data-lucide="circle-check"></i><span>Finalizar</span>
+              </button>
+              <div class="menu-anchor">
+                <button class="icon-btn" id="btn-more" aria-label="Mais opções" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu" data-tooltip="Mais opções">
+                  <i data-lucide="ellipsis-vertical"></i>
+                </button>
+                <div class="menu menu--right" id="more-menu" role="menu" hidden>
+                  <button class="menu__item" role="menuitem" data-action="mark-unread"><i data-lucide="mail-warning"></i>Marcar como não lida</button>
+                  <button class="menu__item" role="menuitem" data-action="pin"><i data-lucide="pin"></i>Fixar conversa</button>
+                  <button class="menu__item" role="menuitem" data-action="export"><i data-lucide="download"></i>Exportar conversa</button>
+                  <hr class="menu__sep">
+                  <button class="menu__item menu__item--danger" role="menuitem" data-action="block"><i data-lucide="ban"></i>Bloquear contato</button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <!-- Busca dentro da conversa -->
+          <div class="chat-search" id="chat-search" hidden>
+            <i data-lucide="search"></i>
+            <input id="chat-search-input" type="search" placeholder="Buscar nesta conversa" aria-label="Buscar nesta conversa" autocomplete="off">
+            <span class="chat-search__count" id="chat-search-count" aria-live="polite"></span>
+            <button class="icon-btn icon-btn--sm" id="search-prev" aria-label="Resultado anterior"><i data-lucide="chevron-up"></i></button>
+            <button class="icon-btn icon-btn--sm" id="search-next" aria-label="Próximo resultado"><i data-lucide="chevron-down"></i></button>
+            <button class="icon-btn icon-btn--sm" id="search-close" aria-label="Fechar busca"><i data-lucide="x"></i></button>
+          </div>
+
+          <!-- Mensagens -->
+          <div class="messages scroll" id="messages" role="log" aria-live="polite" aria-relevant="additions" tabindex="-1">
+            <div class="messages__inner" id="messages-inner"></div>
+          </div>
+
+          <button class="scroll-fab" id="scroll-fab" aria-label="Ir para a última mensagem" hidden>
+            <i data-lucide="arrow-down"></i>
+            <span class="scroll-fab__badge" id="scroll-fab-badge" hidden></span>
+          </button>
+
+          <!-- Rodapé: assumir (fila) OU compositor -->
+          <footer class="composer-wrap" id="composer-wrap">
+
+            <div class="takeover" id="takeover" hidden>
+              <div class="takeover__info">
+                <span class="takeover__icon"><i data-lucide="hourglass"></i></span>
+                <div>
+                  <strong>Cliente aguardando na fila</strong>
+                  <span>Esperando há <b class="timer__value" id="takeover-timer">00:00</b> · Somente leitura até assumir</span>
+                </div>
+              </div>
+              <div class="takeover__actions">
+                <button class="btn btn--ghost" id="btn-takeover-transfer"><i data-lucide="arrow-right-left"></i>Transferir</button>
+                <button class="btn btn--primary" id="btn-takeover"><i data-lucide="hand"></i>Assumir atendimento</button>
+              </div>
+            </div>
+
+            <div class="composer" id="composer">
+
+              <!-- Sugestão de resposta da IA (copiloto) -->
+              <div class="ai-suggest" id="ai-suggest" hidden>
+                <span class="ai-suggest__icon"><i data-lucide="sparkles"></i></span>
+                <div class="ai-suggest__body">
+                  <span class="ai-suggest__label">Sugestão da Bacley IA</span>
+                  <p class="ai-suggest__text" id="ai-suggest-text"></p>
+                </div>
+                <button class="btn btn--soft btn--sm" id="ai-use">Usar <kbd>Tab</kbd></button>
+                <button class="icon-btn icon-btn--sm" id="ai-dismiss" aria-label="Descartar sugestão"><i data-lucide="x"></i></button>
+              </div>
+
+              <!-- Popovers -->
+              <div class="popover quick-replies" id="quick-replies" role="listbox" aria-label="Respostas rápidas" hidden></div>
+              <div class="popover emoji-picker" id="emoji-picker" role="dialog" aria-label="Emojis" hidden></div>
+
+              <div class="composer__box" id="composer-box">
+                <div class="composer__tabs" role="tablist" aria-label="Tipo de mensagem">
+                  <button class="composer__tab is-active" role="tab" aria-selected="true" data-mode="reply">
+                    <i data-lucide="message-square"></i>Responder
+                  </button>
+                  <button class="composer__tab" role="tab" aria-selected="false" data-mode="note">
+                    <i data-lucide="lock"></i>Nota interna
+                  </button>
+                  <span class="composer__tabs-hint" id="note-hint" hidden>Visível apenas para a equipe</span>
+                </div>
+
+                <div class="composer__reply" id="reply-preview" hidden></div>
+                <div class="composer__attachments" id="attachments" hidden></div>
+
+                <div class="composer__recording" id="recording" hidden>
+                  <button class="icon-btn icon-btn--sm icon-btn--danger" id="rec-cancel" aria-label="Descartar gravação"><i data-lucide="trash-2"></i></button>
+                  <span class="rec-dot" aria-hidden="true"></span>
+                  <span class="rec-time" id="rec-time">0:00</span>
+                  <span class="rec-wave" aria-hidden="true">
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  </span>
+                  <span class="rec-label">Gravando áudio…</span>
+                </div>
+
+                <textarea id="composer-input" class="composer__input" rows="1"
+                          placeholder="Digite uma mensagem…  Use / para respostas rápidas"
+                          aria-label="Mensagem"></textarea>
+
+                <div class="composer__toolbar">
+                  <button class="icon-btn icon-btn--sm" id="btn-emoji" aria-label="Emojis" aria-expanded="false" data-tooltip="Emojis" data-tooltip-pos="top"><i data-lucide="smile"></i></button>
+                  <button class="icon-btn icon-btn--sm" id="btn-attach" aria-label="Anexar arquivo" data-tooltip="Anexar arquivo" data-tooltip-pos="top"><i data-lucide="paperclip"></i></button>
+                  <button class="icon-btn icon-btn--sm" id="btn-quick" aria-label="Respostas rápidas" data-tooltip="Respostas rápidas  /" data-tooltip-pos="top"><i data-lucide="zap"></i></button>
+                  <button class="icon-btn icon-btn--sm icon-btn--ai" id="btn-ai-rewrite" aria-label="Melhorar texto com IA" data-tooltip="Melhorar texto com IA" data-tooltip-pos="top"><i data-lucide="wand-sparkles"></i></button>
+
+                  <span class="composer__hint"><kbd>Enter</kbd> enviar · <kbd>Shift</kbd>+<kbd>Enter</kbd> nova linha</span>
+
+                  <button class="send-btn" id="btn-send" aria-label="Gravar áudio">
+                    <i data-lucide="mic" class="send-btn__mic"></i>
+                    <i data-lucide="send-horizontal" class="send-btn__send"></i>
+                  </button>
+                </div>
+                <input type="file" id="file-input" multiple hidden>
+              </div>
+            </div>
+          </footer>
+        </section>
+      </main>
+
+      <!-- Painel de detalhes do contato -->
+      <aside class="details" id="details" aria-label="Detalhes do contato">
+        <div class="details__header">
+          <span>Detalhes do contato</span>
+          <button class="icon-btn icon-btn--sm" id="btn-details-close" aria-label="Fechar detalhes"><i data-lucide="x"></i></button>
+        </div>
+        <div class="details__content scroll" id="details-content"></div>
+      </aside>
+      <div class="backdrop" id="backdrop"></div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       DIÁLOGOS
+       ========================================================= -->
+
+  <!-- Finalizar atendimento -->
+  <dialog class="dialog" id="dialog-finish" aria-labelledby="finish-title">
+    <form method="dialog" class="dialog__form" id="form-finish">
+      <header class="dialog__header">
+        <span class="dialog__icon dialog__icon--success"><i data-lucide="circle-check"></i></span>
+        <div>
+          <h2 id="finish-title">Finalizar atendimento</h2>
+          <p id="finish-sub">A conversa será movida para o histórico.</p>
+        </div>
+      </header>
+
+      <fieldset class="field">
+        <legend class="field__label">Motivo do encerramento</legend>
+        <div class="choice-group">
+          <label class="choice"><input type="radio" name="reason" value="Resolvido" checked><span><i data-lucide="badge-check"></i>Resolvido</span></label>
+          <label class="choice"><input type="radio" name="reason" value="Sem resposta"><span><i data-lucide="clock-alert"></i>Sem resposta</span></label>
+          <label class="choice"><input type="radio" name="reason" value="Encaminhado"><span><i data-lucide="forward"></i>Encaminhado</span></label>
+          <label class="choice"><input type="radio" name="reason" value="Spam"><span><i data-lucide="shield-alert"></i>Spam</span></label>
+        </div>
+      </fieldset>
+
+      <label class="field">
+        <span class="field__label">Observação <small>(opcional)</small></span>
+        <textarea class="input" name="note" rows="2" placeholder="Resumo para o histórico do cliente…"></textarea>
+      </label>
+
+      <label class="switch">
+        <input type="checkbox" name="csat" checked>
+        <span class="switch__track" aria-hidden="true"></span>
+        <span class="switch__text">
+          <strong>Enviar pesquisa de satisfação (CSAT)</strong>
+          <small>O cliente receberá uma avaliação de 1 a 5 estrelas.</small>
+        </span>
+      </label>
+
+      <footer class="dialog__footer">
+        <button class="btn btn--ghost" value="cancel" formnovalidate>Cancelar</button>
+        <button class="btn btn--success" value="confirm" id="finish-confirm"><i data-lucide="check"></i>Finalizar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Transferir atendimento -->
+  <dialog class="dialog" id="dialog-transfer" aria-labelledby="transfer-title">
+    <form method="dialog" class="dialog__form" id="form-transfer">
+      <header class="dialog__header">
+        <span class="dialog__icon"><i data-lucide="arrow-right-left"></i></span>
+        <div>
+          <h2 id="transfer-title">Transferir atendimento</h2>
+          <p>Escolha um setor ou atendente disponível.</p>
+        </div>
+      </header>
+      <label class="search search--dialog">
+        <i data-lucide="search" class="search__icon"></i>
+        <input type="search" id="transfer-search" placeholder="Buscar setor ou atendente" aria-label="Buscar setor ou atendente" autocomplete="off">
+      </label>
+      <div class="transfer-list scroll" id="transfer-list" role="radiogroup" aria-label="Destino da transferência"></div>
+      <label class="field">
+        <span class="field__label">Mensagem para quem recebe <small>(opcional)</small></span>
+        <textarea class="input" name="note" rows="2" placeholder="Contextualize o próximo atendente…"></textarea>
+      </label>
+      <footer class="dialog__footer">
+        <button class="btn btn--ghost" value="cancel" formnovalidate>Cancelar</button>
+        <button class="btn btn--primary" value="confirm"><i data-lucide="send"></i>Transferir</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Atalhos de teclado -->
+  <dialog class="dialog dialog--sm" id="dialog-shortcuts" aria-labelledby="shortcuts-title">
+    <form method="dialog" class="dialog__form">
+      <header class="dialog__header">
+        <span class="dialog__icon"><i data-lucide="keyboard"></i></span>
+        <div>
+          <h2 id="shortcuts-title">Atalhos de teclado</h2>
+          <p>Atenda mais rápido sem tirar as mãos do teclado.</p>
+        </div>
+      </header>
+      <ul class="shortcuts">
+        <li><span>Buscar conversas</span><span><kbd>Ctrl</kbd><kbd>K</kbd></span></li>
+        <li><span>Conversa anterior / próxima</span><span><kbd>Alt</kbd><kbd>↑</kbd><kbd>↓</kbd></span></li>
+        <li><span>Buscar na conversa</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>F</kbd></span></li>
+        <li><span>Alternar resposta / nota interna</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>N</kbd></span></li>
+        <li><span>Finalizar atendimento</span><span><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>E</kbd></span></li>
+        <li><span>Respostas rápidas</span><span><kbd>/</kbd></span></li>
+        <li><span>Aceitar sugestão da IA</span><span><kbd>Tab</kbd></span></li>
+        <li><span>Fechar painéis e menus</span><span><kbd>Esc</kbd></span></li>
+      </ul>
+      <footer class="dialog__footer">
+        <button class="btn btn--primary" value="close">Entendi</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Notificações -->
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+</body>
+</html>
